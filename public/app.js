@@ -91,11 +91,39 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHistoryCount();
 });
 
+const AUTHOR_OPTIONS = {
+  fantasy:   [['tolkien','J.R.R. Tolkien'],['martin','George R.R. Martin'],['gaiman','Neil Gaiman'],['pratchett','Terry Pratchett'],['sanderson','Brandon Sanderson']],
+  scifi:     [['asimov','Isaac Asimov'],['herbert','Frank Herbert'],['dick','Philip K. Dick'],['clarke','Arthur C. Clarke'],['weir','Andy Weir']],
+  romance:   [['sparks','Nicholas Sparks'],['hoover','Colleen Hoover'],['quinn','Julia Quinn'],['roberts','Nora Roberts']],
+  mystery:   [['christie','Agatha Christie'],['chandler','Raymond Chandler'],['doyle','Arthur Conan Doyle'],['flynn','Gillian Flynn']],
+  horror:    [['king','Stephen King'],['jackson','Shirley Jackson'],['lovecraft','H.P. Lovecraft']],
+  comedy:    [['pratchett','Terry Pratchett'],['adams','Douglas Adams'],['wodehouse','P.G. Wodehouse']],
+  adventure: [['verne','Jules Verne'],['london','Jack London'],['stevenson','Robert Louis Stevenson']],
+  fairytale: [['andersen','Hans Christian Andersen'],['gaiman','Neil Gaiman'],['carter','Angela Carter']],
+  christian: [['rivers','Francine Rivers'],['kingsbury','Karen Kingsbury'],['lewis','Beverly Lewis']],
+  spicy:     [],
+};
+
+function updateAuthorOptions(genre) {
+  const select = document.getElementById('authorStyle');
+  const options = AUTHOR_OPTIONS[genre] || [];
+  select.innerHTML = '<option value="">No preference</option>';
+  options.forEach(([val, label]) => {
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = label;
+    select.appendChild(opt);
+  });
+}
+
 document.addEventListener('change', (e) => {
   if (e.target.name === 'genre') {
     document.body.className = `genre-${e.target.value}`;
+    updateAuthorOptions(e.target.value);
   }
 });
+
+// Init author options on load
+document.addEventListener('DOMContentLoaded', () => { updateAuthorOptions('fantasy'); });
 
 /* ===== STEP NAV ===== */
 function goToStep(n) {
@@ -167,6 +195,7 @@ function collectFormData() {
     genre: fd.get('genre')||'fantasy', tone: fd.get('tone')||'dramatic',
     length: fd.get('length')||'medium', pov: fd.get('pov')||'third_limited',
     audienceAge: document.getElementById('audienceAge').value,
+    authorStyle: document.getElementById('authorStyle').value || '',
     storyIdea: (fd.get('storyIdea')||'').trim(), setting: (fd.get('setting')||'').trim(),
     timePeriod: (fd.get('timePeriod')||'').trim(), characters, plotPoints,
   };
@@ -190,7 +219,7 @@ function surpriseMe() {
 }
 
 /* ===== SUMMARY ===== */
-const GENRE_LABELS={fantasy:'🧙 Fantasy',scifi:'🚀 Sci-Fi',romance:'💖 Romance',mystery:'🔍 Mystery',horror:'👻 Horror',comedy:'😂 Comedy',adventure:'⚔️ Adventure',fairytale:'🌟 Fairy Tale',christian:'✝️ Chr. Romance'};
+const GENRE_LABELS={fantasy:'🧙 Fantasy',scifi:'🚀 Sci-Fi',romance:'💖 Romance',mystery:'🔍 Mystery',horror:'👻 Horror',comedy:'😂 Comedy',adventure:'⚔️ Adventure',fairytale:'🌟 Fairy Tale',christian:'✝️ Chr. Romance',spicy:'🌶️ Spicy'};
 const TONE_LABELS={whimsical:'🦋 Whimsical',dramatic:'🎭 Dramatic',dark:'🌑 Dark',silly:'🃏 Silly',epic:'🏔️ Epic',heartwarming:'🌈 Heartwarming',spicy:'🌶️ Spicy'};
 const POV_LABELS={third_limited:'3rd (limited)',third_omni:'3rd (omniscient)',first:'1st Person'};
 const LENGTH_LABELS={short:'~400 words',medium:'~900 words',long:'~1800 words',book:'📕 Full Book'};
@@ -204,6 +233,7 @@ function buildSummary() {
     <div class="summary-row"><span class="summary-label">Tone</span><span>${TONE_LABELS[data.tone]||data.tone}</span><span style="color:var(--border);margin:0 6px">·</span><span>${POV_LABELS[data.pov]||data.pov}</span><span style="color:var(--border);margin:0 6px">·</span><span>${LENGTH_LABELS[data.length]||data.length}</span></div>
     ${data.storyIdea?`<div class="summary-row"><span class="summary-label">Premise</span><span>${data.storyIdea}</span></div>`:''}
     ${(data.setting||data.timePeriod)?`<div class="summary-row"><span class="summary-label">World</span><span>${[data.setting,data.timePeriod].filter(Boolean).join(' · ')}</span></div>`:''}
+    ${data.authorStyle ? `<div class="summary-row"><span class="summary-label">Style</span><span>In the style of <strong>${getAuthorLabel(data.genre, data.authorStyle)}</strong></span></div>` : ''}
     <div class="summary-row"><span class="summary-label">Cast</span><span>${charTags}</span></div>
     <div class="summary-row"><span class="summary-label">Plot</span><span>${plotTags}</span></div>`;
   // Show the right forge button label
@@ -619,6 +649,56 @@ function resetForm(){
   document.title='Story Forge — Generate Your Own Story';
   goToStep(1); window.scrollTo({top:0,behavior:'smooth'});
 }
+
+function getAuthorLabel(genre, key) {
+  const opts = AUTHOR_OPTIONS[genre] || [];
+  const match = opts.find(o => o[0] === key);
+  return match ? match[1] : key;
+}
+
+/* ===== SHARE ===== */
+async function shareStory() {
+  if (!currentStoryText) return;
+  const btn = document.getElementById('shareBtn');
+  btn.textContent = '⏳ Saving...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/share', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        title: currentStoryTitle,
+        genre: lastFormData?.genre || '',
+        tone: lastFormData?.tone || '',
+        authorStyle: lastFormData?.authorStyle || '',
+        content: currentStoryText,
+      }),
+    });
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    const url = `${location.origin}/s/${json.id}`;
+    document.getElementById('shareUrlInput').value = url;
+    document.getElementById('shareModal').classList.remove('hidden');
+  } catch(err) {
+    showToast(`Share failed: ${err.message}`);
+  } finally {
+    btn.textContent = '🔗 Share';
+    btn.disabled = false;
+  }
+}
+
+function closeShareModal() {
+  document.getElementById('shareModal').classList.add('hidden');
+}
+
+function copyShareLink() {
+  const input = document.getElementById('shareUrlInput');
+  navigator.clipboard.writeText(input.value).then(() => showToast('Link copied!'));
+}
+
+// Close modal on backdrop click
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'shareModal') closeShareModal();
+});
 
 function showError(msg){document.getElementById('generatingIndicator').classList.add('hidden');document.getElementById('storyContent').innerHTML=`<p style="color:#ff6b6b">⚠️ ${escHtml(msg)}</p>`;}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),2500);}

@@ -1,9 +1,12 @@
 import os
 import json
+import uuid
 import re as _re
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
+import psycopg2
+import psycopg2.extras
 from flask import Flask, request, Response, send_from_directory, jsonify
 
 load_dotenv(Path(__file__).parent / '.env')
@@ -12,8 +15,103 @@ app = Flask(__name__, static_folder='public', static_url_path='')
 
 client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
 
-TEXT_MODEL   = 'gpt-4o'
+# ── Database ───────────────────────────────────────────────────────────────────
+
+def get_db():
+    return psycopg2.connect(os.environ['DATABASE_URL'], cursor_factory=psycopg2.extras.RealDictCursor)
+
+def init_db():
+    try:
+        conn = get_db()
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS stories (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    title TEXT NOT NULL,
+                    genre TEXT,
+                    tone TEXT,
+                    author_style TEXT,
+                    content TEXT NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                )
+            """)
+        conn.commit()
+        conn.close()
+        print("Database ready.")
+    except Exception as e:
+        print(f"Database init warning: {e}")
+
+TEXT_MODEL    = 'gpt-4o'
 CHAPTER_WORDS = 1800
+
+# ── Author styles ──────────────────────────────────────────────────────────────
+
+AUTHOR_STYLES = {
+    'fantasy': [
+        ('tolkien',   'J.R.R. Tolkien',       'mythic and world-building — invented history, legends, and languages; sweeping epic scope with a deep sense of the ancient'),
+        ('martin',    'George R.R. Martin',    'morally grey characters, political intrigue, brutal consequences, and meticulous world detail that makes the impossible feel real'),
+        ('gaiman',    'Neil Gaiman',           'lyrical and myth-infused — dreamlike atmosphere with quiet menace, modern fairy-tale sensibility, and poetic sentence rhythm'),
+        ('pratchett', 'Terry Pratchett',       'sharp satirical wit, comic timing, humanist warmth — jokes that cut deeper the more you think about them'),
+        ('sanderson', 'Brandon Sanderson',     'systematic magic with clear rules, cause-and-effect plotting, emphasis on character growth under pressure'),
+    ],
+    'scifi': [
+        ('asimov',  'Isaac Asimov',       'clean, logical prose focused on big ideas about society and technology; dialogue-heavy with an essayistic quality'),
+        ('herbert', 'Frank Herbert',      'dense and layered — philosophical depth, political ecology, inner monologue, and a sense of vast historical forces'),
+        ('dick',    'Philip K. Dick',     'paranoid and reality-questioning; ordinary people in extraordinary situations; prose that feels slightly off-kilter'),
+        ('clarke',  'Arthur C. Clarke',   'scientific wonder, clean economical prose, awe at the scale of the universe, optimism about human potential'),
+        ('weir',    'Andy Weir',          'first-person technical problem-solving, dry humor, scientific accuracy, everyman voice'),
+    ],
+    'romance': [
+        ('sparks',  'Nicholas Sparks',  'emotional and bittersweet; Southern US settings; themes of love, loss, and sacrifice; accessible prose that earns its tears'),
+        ('hoover',  'Colleen Hoover',   'raw emotional intensity, contemporary voice, complex family dynamics, willingness to go to dark places'),
+        ('quinn',   'Julia Quinn',      'sparkling Regency wit, comedic misunderstandings, sharp banter, heroines who hold their own'),
+        ('roberts', 'Nora Roberts',     'strong capable heroines, fast-paced plotting, vivid sense of place, satisfying romantic tension'),
+    ],
+    'mystery': [
+        ('christie', 'Agatha Christie',         'elegant fair-play plotting, dry wit, drawing-room atmosphere, satisfying reveals where every clue was visible'),
+        ('chandler', 'Raymond Chandler',        'hard-boiled first-person narration, Los Angeles noir, sharp similes, morally compromised world'),
+        ('doyle',    'Arthur Conan Doyle',      'methodical deduction, Watson-as-narrator grounding the extraordinary, Victorian atmosphere and gentlemanly adventure'),
+        ('flynn',    'Gillian Flynn',           'unreliable narrators, psychological darkness, biting social satire, prose with real edge'),
+    ],
+    'horror': [
+        ('king',     'Stephen King',    'deep character backstory, small-town America, slow-burn dread, vernacular first-person voice, earned scares'),
+        ('jackson',  'Shirley Jackson', 'quiet domestic menace, psychological unease, the horror of the ordinary, restrained and precise prose'),
+        ('lovecraft','H.P. Lovecraft',  'cosmic dread, the unknowable, ornate vocabulary, encroaching madness, awe at humanity\'s insignificance'),
+    ],
+    'comedy': [
+        ('pratchett', 'Terry Pratchett',   'satirical wit with deep humanist warmth, absurdist logic that holds together, jokes with philosophical payoff'),
+        ('adams',     'Douglas Adams',     'deadpan absurdism, digressions that circle back perfectly, mock-scientific explanations for the ridiculous'),
+        ('wodehouse', 'P.G. Wodehouse',    'light British farce, ingeniously tangled plots, aristocratic buffoonery, sunny prose with perfect comic timing'),
+    ],
+    'adventure': [
+        ('verne',      'Jules Verne',              'scientific optimism, meticulous geographical and technical detail, wonder at exploration and discovery'),
+        ('london',     'Jack London',              'raw nature, survival against the elements, naturalistic prose, human will tested to its limits'),
+        ('stevenson',  'Robert Louis Stevenson',   'swashbuckling action, vivid memorable characters, moral complexity beneath the adventure'),
+    ],
+    'fairytale': [
+        ('andersen', 'Hans Christian Andersen', 'melancholy beauty, spiritual yearning, bittersweet endings, lyrical prose with quiet pathos'),
+        ('gaiman',   'Neil Gaiman',             'dark fairy tale reimagining, mythic resonance, modern sensibility through an ancient lens'),
+        ('carter',   'Angela Carter',           'lush Gothic prose, subverted archetypes, feminist retellings with rich sensory language'),
+    ],
+    'christian': [
+        ('rivers',     'Francine Rivers',  'redemptive faith journeys, historical depth, emotional weight, characters transformed by grace'),
+        ('kingsbury',  'Karen Kingsbury',  'contemporary family-centered stories, emotionally accessible faith, hope through hardship'),
+        ('lewis',      'Beverly Lewis',    'Amish community settings, gentle lyrical pace, themes of belonging, sacrifice, and belief'),
+    ],
+    'spicy': [],  # style descriptors preferred over named authors here
+}
+
+def get_author_style_instruction(author_key, genre):
+    styles = AUTHOR_STYLES.get(genre, [])
+    match = next((s for s in styles if s[0] == author_key), None)
+    if not match:
+        return None
+    _, name, description = match
+    return (
+        f"WRITING STYLE — channel {name}: {description}. "
+        f"Capture their distinctive voice and approach. Do not copy any actual text from their works — "
+        f"embody the spirit, not the letter."
+    )
 
 WORD_TARGETS = {'short': 400, 'medium': 900, 'long': 1800}
 
@@ -188,6 +286,23 @@ def index():
     return send_from_directory('public', 'index.html')
 
 
+CRAFT_SYSTEM_PROMPT = """You are an award-winning fiction writer. You craft vivid, emotionally resonant, personalized stories. Every story feels made for exactly the person reading it.
+
+CRAFT RULES:
+- Show emotion through specific physical sensation and action — never label it ("she felt nervous" → show the dry mouth, the fingers that won't stay still)
+- Use concrete, specific detail. A cracked leather chair beats "an old chair"
+- Vary sentence rhythm deliberately — short sentences land punches; long ones build atmosphere
+- Dialogue must reveal character, not just deliver information
+- End at the moment of maximum resonance, not after it
+
+WHAT TO AVOID:
+- Stale phrasing: "storm-grey eyes", "heart kicked up a notch", "filled a room", voice-as-food metaphors, "unspoken anything", "every syllable a caress", "masked with professional courtesy"
+- Adverbs substituting for strong verbs: nervously, softly, suddenly, deeply
+- Announcing emotion: "She felt...", "He realized...", "She noticed..."
+- Generic atmosphere that could belong to any story
+- Vague endings that go abstract right when they should get concrete and specific"""
+
+
 @app.route('/api/generate', methods=['POST'])
 def generate():
     data = request.get_json()
@@ -197,13 +312,18 @@ def generate():
     def stream():
         try:
             prompt = build_prompt(data)
+            # Build messages — inject author style into system if specified
+            author_key   = data.get('authorStyle', '')
+            genre        = data.get('genre', 'fantasy')
+            author_instr = get_author_style_instruction(author_key, genre) if author_key else None
+            system_msg   = CRAFT_SYSTEM_PROMPT
+            if author_instr:
+                system_msg += f"\n\n{author_instr}"
+
             resp = client.chat.completions.create(
                 model=TEXT_MODEL, max_tokens=4096, stream=True,
                 messages=[
-                    {'role': 'system', 'content': (
-                        "You are an award-winning fiction writer. You craft vivid, emotionally resonant, "
-                        "personalized stories. Every story feels made for exactly the person reading it."
-                    )},
+                    {'role': 'system', 'content': system_msg},
                     {'role': 'user', 'content': prompt},
                 ],
             )
@@ -396,7 +516,116 @@ Write approximately {CHAPTER_WORDS} words. Start directly with the chapter conte
                     headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
+# ── Share / Read ───────────────────────────────────────────────────────────────
+
+@app.route('/api/share', methods=['POST'])
+def share_story():
+    data = request.get_json()
+    if not data or not data.get('content'):
+        return {'error': 'No content to share'}, 400
+    try:
+        conn = get_db()
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO stories (title, genre, tone, author_style, content) "
+                "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                (
+                    data.get('title', 'Untitled'),
+                    data.get('genre', ''),
+                    data.get('tone', ''),
+                    data.get('authorStyle', ''),
+                    data.get('content', ''),
+                )
+            )
+            story_id = cur.fetchone()['id']
+        conn.commit()
+        conn.close()
+        return jsonify({'id': str(story_id)})
+    except Exception as e:
+        return {'error': str(e)}, 500
+
+
+@app.route('/s/<story_id>')
+def read_story(story_id):
+    try:
+        conn = get_db()
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM stories WHERE id = %s", (story_id,))
+            story = cur.fetchone()
+        conn.close()
+        if not story:
+            return "Story not found.", 404
+
+        title       = story['title'] or 'Untitled'
+        content     = story['content'] or ''
+        genre       = story['genre'] or ''
+        tone        = story['tone'] or ''
+        author_style = story['author_style'] or ''
+
+        # Format content as HTML paragraphs
+        paragraphs  = [p.strip() for p in content.split('\n\n') if p.strip()]
+        paras_html  = ''.join(
+            f'<p class="{"first-para" if i == 0 else ""}">{p}</p>'
+            for i, p in enumerate(paragraphs)
+        )
+
+        meta_parts = [g.title() for g in [genre, tone] if g]
+        if author_style:
+            meta_parts.append(f'In the style of {author_style.replace("-", " ").title()}')
+        meta_str = ' · '.join(meta_parts)
+
+        return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{title} — Story Forge</title>
+  <meta property="og:title" content="{title}"/>
+  <meta property="og:description" content="A personalized story generated on Story Forge"/>
+  <style>
+    *,*::before,*::after{{box-sizing:border-box;margin:0;padding:0}}
+    body{{font-family:Georgia,'Times New Roman',serif;background:#0f0e17;color:#e8e4f0;min-height:100vh;line-height:1.8}}
+    .header{{text-align:center;padding:40px 20px 28px;background:linear-gradient(180deg,#1a0e2e,#0f0e17);border-bottom:1px solid #3a3358}}
+    .logo-link{{text-decoration:none;color:inherit;display:inline-block;margin-bottom:8px}}
+    .logo-link:hover .site-name{{opacity:0.8}}
+    .site-name{{font-size:1rem;font-family:sans-serif;letter-spacing:2px;color:#9b95b3;text-transform:uppercase}}
+    h1{{font-size:2rem;font-weight:normal;font-style:italic;background:linear-gradient(135deg,#b08aff,#ff8c69);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;line-height:1.3}}
+    .meta{{font-family:sans-serif;font-size:0.8rem;color:#9b95b3;letter-spacing:0.5px}}
+    main{{max-width:680px;margin:0 auto;padding:40px 20px 80px}}
+    .story{{background:#1a1828;border:1px solid #3a3358;border-radius:12px;padding:40px 48px;font-size:1.05rem;line-height:1.95}}
+    @media(max-width:560px){{.story{{padding:22px 20px}}}}
+    .story p{{margin-bottom:1.3em}}
+    .story p:last-child{{margin-bottom:0}}
+    .first-para::first-letter{{font-size:3.2em;line-height:0.75;float:left;margin:0.06em 0.1em 0 0;color:#b08aff;font-weight:bold}}
+    .cta{{text-align:center;margin-top:40px;padding-top:32px;border-top:1px solid #3a3358}}
+    .cta p{{color:#9b95b3;font-family:sans-serif;font-size:0.9rem;margin-bottom:16px}}
+    .cta a{{display:inline-block;background:linear-gradient(135deg,#b08aff,#ff8c69);color:#0a0a14;padding:13px 32px;border-radius:50px;text-decoration:none;font-family:sans-serif;font-weight:800;font-size:1rem;transition:transform 0.2s,box-shadow 0.2s}}
+    .cta a:hover{{transform:translateY(-2px);box-shadow:0 6px 24px rgba(176,138,255,0.4)}}
+    footer{{text-align:center;padding:20px;color:#9b95b3;font-family:sans-serif;font-size:0.78rem;border-top:1px solid #3a3358}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/" class="logo-link"><div class="site-name">📖 Story Forge</div></a>
+    <h1>{title}</h1>
+    <div class="meta">{meta_str}</div>
+  </div>
+  <main>
+    <div class="story">{paras_html}</div>
+    <div class="cta">
+      <p>This story was created on Story Forge — generate your own with your characters.</p>
+      <a href="/">Forge Your Own Story →</a>
+    </div>
+  </main>
+  <footer>AI-generated story · Story Forge</footer>
+</body>
+</html>"""
+    except Exception as e:
+        return f"Error loading story: {e}", 500
+
+
 if __name__ == '__main__':
+    init_db()
     port = int(os.environ.get('PORT', 3000))
     print(f"\nStory Forge running at http://localhost:{port}\n")
     app.run(host='0.0.0.0', port=port, debug=False)

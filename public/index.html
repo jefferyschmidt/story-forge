@@ -95,14 +95,25 @@
           </div>
         </div>
 
-        <div class="field-group">
-          <label class="field-label" for="audienceAge">Audience</label>
-          <div class="select-wrap">
-            <select name="audienceAge" id="audienceAge">
-              <option value="kids">Kids — family-friendly</option>
-              <option value="teens">Teens</option>
-              <option value="adults" selected>Adults</option>
-            </select>
+        <div class="two-col">
+          <div class="field-group">
+            <label class="field-label" for="audienceAge">Audience</label>
+            <div class="select-wrap">
+              <select name="audienceAge" id="audienceAge">
+                <option value="kids">Kids — family-friendly</option>
+                <option value="teens">Teens</option>
+                <option value="adults" selected>Adults</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field-group" id="authorStyleGroup">
+            <label class="field-label" for="authorStyle">Write in the style of <span class="optional">(optional)</span></label>
+            <div class="select-wrap">
+              <select name="authorStyle" id="authorStyle">
+                <option value="">No preference</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -177,6 +188,7 @@
           <span id="wordCountBadge" class="word-count-badge hidden"></span>
         </div>
         <div class="story-actions">
+          <button class="btn-action" onclick="shareStory()" id="shareBtn">🔗 Share</button>
           <button class="btn-action" onclick="copyStory()">📋 Copy</button>
           <button class="btn-action" onclick="downloadStory()">💾 Download</button>
           <button class="btn-action" onclick="printStory()">🖨️ Print</button>
@@ -255,6 +267,21 @@
   </footer>
 
   <div id="toast" class="toast hidden"></div>
+
+  <!-- Share modal -->
+  <div id="shareModal" class="share-modal hidden">
+    <div class="share-modal-box">
+      <div class="share-modal-header">
+        <h3>Share this story</h3>
+        <button onclick="closeShareModal()">✕</button>
+      </div>
+      <p class="share-modal-desc">Anyone with this link can read your story.</p>
+      <div class="share-url-row">
+        <input type="text" id="shareUrlInput" readonly />
+        <button class="btn-copy-link" onclick="copyShareLink()">Copy</button>
+      </div>
+    </div>
+  </div>
 
   <div id="printFrame" class="print-frame hidden">
     <h1 id="printTitle"></h1>
