@@ -322,6 +322,23 @@ details[open] .advanced-toggle::after { transform: rotate(90deg); }
 .story-content p:last-child { margin-bottom: 0; }
 .story-content p.first-para::first-letter { font-size: 3.4em; line-height: 0.72; float: left; margin: 0.04em 0.1em 0 0; color: var(--a); font-weight: 600; transition: color 0.4s; }
 
+/* Arc preview */
+.arc-preview {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 14px 24px 20px;
+  line-height: 1.7;
+  animation: fadeIn 0.5s ease;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+.arc-preview.hidden { display: none; }
+.arc-preview::before { content: '"'; }
+.arc-preview::after  { content: '"'; }
+
 /* Generating */
 .generating-indicator { display:flex; align-items:center; justify-content:center; gap:10px; padding:16px; color:var(--muted); font-size:0.85rem; animation:pulse 1.5s ease-in-out infinite; }
 .generating-indicator.hidden { display:none; }

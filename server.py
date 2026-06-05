@@ -171,6 +171,100 @@ def user_stories():
 TEXT_MODEL    = 'gpt-4o'
 CHAPTER_WORDS = 1800
 
+# ── Story beat targets by length ───────────────────────────────────────────────
+
+BEAT_TARGETS = {
+    'short': [
+        ('Opening hook',  70,  'Drop straight into the middle of something — action, charged image, or a single line that creates a question'),
+        ('Setup',        100,  'Establish character and situation as efficiently as possible — one telling detail beats three generic ones'),
+        ('Complication', 130,  'Introduce the central tension; something has to change or be decided'),
+        ('Climax',        60,  'The decisive moment — a choice made, a truth spoken, a door opened or closed'),
+        ('Resolution',    40,  'Land the emotional note — specific and concrete, not abstract'),
+    ],
+    'medium': [
+        ('Opening hook',  100, 'Drop into the middle — action, image, or a line that creates immediate forward pull'),
+        ('Setup',         200, 'Establish character, situation, and what they want; use one specific detail that will pay off later'),
+        ('Rising tension',300, 'Deepen the conflict — raise stakes, complicate the path forward, let characters misread each other'),
+        ('Climax',        200, 'The decisive moment — everything that was building converges here'),
+        ('Resolution',    100, 'Land the emotional note — earned, specific, and resonant; one image that carries the weight'),
+    ],
+    'long': [
+        ('Opening hook',  150, 'Drop into the middle — something is already happening'),
+        ('World & character', 400, 'Establish character depth, setting, and what they want vs. what they need'),
+        ('Rising tension', 500, 'Multiple complications — each scene raises stakes or reveals character'),
+        ('Dark moment',   300, 'The low point — things get worse before they get better; a cost is paid'),
+        ('Climax',        300, 'Everything converges — the decisive moment of choice or revelation'),
+        ('Resolution',    150, 'Earned landing — the changed world, the emotional payoff, the final image'),
+    ],
+}
+
+
+# ── Pass 1: Story planning ─────────────────────────────────────────────────────
+
+def plan_story(data):
+    """Generate a beat-by-beat story plan before writing begins."""
+    genre       = data.get('genre', 'fantasy')
+    tone        = data.get('tone', 'dramatic')
+    length      = data.get('length', 'medium')
+    characters  = data.get('characters', [])
+    setting     = data.get('setting', '').strip()
+    time_period = data.get('timePeriod', '').strip()
+    story_idea  = data.get('storyIdea', '').strip()
+
+    genre_desc = GENRE_FLAVORS.get(genre, genre)
+    tone_desc  = TONE_FLAVORS.get(tone, tone)
+    char_lines = build_char_lines(characters)
+    beats      = BEAT_TARGETS.get(length, BEAT_TARGETS['medium'])
+    beat_list  = '\n'.join(f"  • {b[0]} (~{b[1]} words): {b[2]}" for b in beats)
+    total_words = sum(b[1] for b in beats)
+
+    context_parts = []
+    if story_idea:
+        context_parts.append(f"PREMISE: {story_idea}")
+    if char_lines:
+        context_parts.append("CHARACTERS:\n" + "\n".join(char_lines))
+    if setting:
+        loc = setting + (f" ({time_period})" if time_period else "")
+        context_parts.append(f"SETTING: {loc}")
+    context = "\n\n".join(context_parts) if context_parts else "No specific premise — invent something compelling."
+
+    prompt = f"""Plan a {genre_desc} short story (~{total_words} words total) with a {tone_desc} tone.
+
+{context}
+
+The story must hit these beats in order:
+{beat_list}
+
+Return ONLY valid JSON — no markdown fences, no commentary:
+{{
+  "title": "A specific, evocative title — not generic",
+  "arc": "One sentence: the emotional journey this story traces",
+  "beats": [
+    {{
+      "name": "beat name",
+      "words": target_word_count,
+      "what": "Exactly what happens — specific to these characters and this premise, not a template",
+      "note": "The precise emotional quality this section should have"
+    }}
+  ]
+}}
+
+Make every field specific to THIS story. The title and arc must be earned by what actually happens."""
+
+    resp = client.chat.completions.create(
+        model=TEXT_MODEL,
+        max_tokens=700,
+        response_format={"type": "json_object"},
+        messages=[
+            {'role': 'system', 'content': (
+                "You are a story architect. You create tight, specific outlines with clear emotional arcs. "
+                "Every beat you describe is particular to the characters and premise given — never generic."
+            )},
+            {'role': 'user', 'content': prompt},
+        ],
+    )
+    return json.loads(resp.choices[0].message.content)
+
 # ── Author styles ──────────────────────────────────────────────────────────────
 
 AUTHOR_STYLES = {
@@ -325,7 +419,7 @@ def build_char_lines(characters):
     return lines
 
 
-def build_prompt(data):
+def build_prompt(data, plan=None):
     genre       = data.get('genre', 'fantasy')
     tone        = data.get('tone', 'dramatic')
     length      = data.get('length', 'medium')
@@ -350,16 +444,19 @@ def build_prompt(data):
         'adults': 'AUDIENCE: Adults.',
     }.get(audience, 'AUDIENCE: Adults.')
 
+    # If we have a plan, use its title — no need for the model to invent one
+    if plan and plan.get('title'):
+        title_instruction = f"The title of this story is: {plan['title']}\nBegin your response with exactly:\n<story-title>{plan['title']}</story-title>\n\nThen begin the story."
+    else:
+        title_instruction = "Begin your response with a title on the very first line, formatted exactly like this:\n<story-title>Your Title Here</story-title>\n\nThen leave one blank line and begin the story."
+
     prompt = f"""You are writing a {genre_desc}.
 Tone: {tone_desc}
 Point of view: {pov_instr}
 Target length: approximately {word_target} words.
 {audience_note}
 
-Begin your response with a title on the very first line, formatted exactly like this:
-<story-title>Your Title Here</story-title>
-
-Then leave one blank line and begin the story."""
+{title_instruction}"""
 
     if story_idea:
         prompt += f"\n\nCORE PREMISE:\n{story_idea}"
@@ -374,10 +471,19 @@ Then leave one blank line and begin the story."""
     if plot_lines:
         prompt += "\n\nPLOT BEATS:\n" + "\n".join(plot_lines)
 
-    prompt += """
+    # Inject the story plan if we have one
+    if plan and plan.get('beats'):
+        prompt += f"\n\nSTORY ARC: {plan.get('arc', '')}"
+        prompt += "\n\nBEAT-BY-BEAT STRUCTURE — follow this precisely, hitting each word target:"
+        for beat in plan['beats']:
+            prompt += f"\n\n[{beat['name']} — ~{beat['words']} words]"
+            prompt += f"\n  What happens: {beat['what']}"
+            prompt += f"\n  Emotional quality: {beat['note']}"
+        prompt += "\n\nHonor these word targets. Do not rush the ending — the resolution gets its full allocated space."
+    else:
+        prompt += "\n\nCRAFT: Open with a hook. Show don't tell. End with resonance."
 
-CRAFT: Open with a hook. Show don't tell. End with resonance.
-Write the title tag first, then the story. Nothing else before the title tag."""
+    prompt += "\n\nWrite the title tag first, then the story. Nothing else before the title tag."
     return prompt
 
 
@@ -438,8 +544,7 @@ def generate():
 
     def stream():
         try:
-            prompt = build_prompt(data)
-            # Build messages — inject author style into system if specified
+            length = data.get('length', 'medium')
             author_key   = data.get('authorStyle', '')
             genre        = data.get('genre', 'fantasy')
             author_instr = get_author_style_instruction(author_key, genre) if author_key else None
@@ -447,6 +552,19 @@ def generate():
             if author_instr:
                 system_msg += f"\n\n{author_instr}"
 
+            # ── Pass 1: Plan the story (skipped for book mode) ──────────────
+            plan = None
+            if length in ('short', 'medium', 'long'):
+                yield f"data: {json.dumps({'status': 'planning'})}\n\n"
+                try:
+                    plan = plan_story(data)
+                    yield f"data: {json.dumps({'plan': plan})}\n\n"
+                except Exception as plan_err:
+                    # Planning failed — continue without it, no big deal
+                    yield f"data: {json.dumps({'plan': None})}\n\n"
+
+            # ── Pass 2: Write the story ──────────────────────────────────────
+            prompt = build_prompt(data, plan=plan)
             resp = client.chat.completions.create(
                 model=TEXT_MODEL, max_tokens=4096, stream=True,
                 messages=[

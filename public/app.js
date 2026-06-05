@@ -385,7 +385,7 @@ async function generateStory(fresh=false) {
   currentStoryText=''; currentStoryTitle='Your Story';
 
   const msgs = GENRE_LOADING[data.genre]||['Writing your story...'];
-  document.getElementById('generatingText').textContent = msgs[Math.floor(Math.random()*msgs.length)];
+  document.getElementById('generatingText').textContent = 'Planning your story...';
   document.getElementById('shimmerText').textContent = msgs[Math.floor(Math.random()*msgs.length)];
 
   // Reset UI
@@ -393,6 +393,8 @@ async function generateStory(fresh=false) {
   const output = document.getElementById('storyOutput');
   output.classList.remove('hidden');
   document.getElementById('storyContent').innerHTML='';
+  document.getElementById('arcPreview').textContent='';
+  document.getElementById('arcPreview').classList.add('hidden');
   document.getElementById('storyTitle').textContent='Your Story';
   document.getElementById('storyTitleSticky').textContent='Your Story';
   document.getElementById('storyGenreTag').textContent='';
@@ -425,6 +427,34 @@ async function generateStory(fresh=false) {
         const raw=line.slice(6).trim(); if(!raw) continue;
         let msg; try{msg=JSON.parse(raw);}catch{continue;}
         if(msg.error){showError(msg.error);break;}
+
+        // Pass 1 events
+        if(msg.status === 'planning'){
+          document.getElementById('generatingText').textContent = 'Planning your story...';
+          continue;
+        }
+        if('plan' in msg){
+          const plan = msg.plan;
+          if(plan && plan.title){
+            // Title is known before writing starts
+            currentStoryTitle = plan.title;
+            titleExtracted = true;
+            document.getElementById('storyTitle').textContent = plan.title;
+            document.getElementById('storyTitleSticky').textContent = plan.title;
+            document.title = `${plan.title} — Story Forge`;
+          }
+          if(plan && plan.arc){
+            // Flash the arc sentence as a preview
+            const arcEl = document.getElementById('arcPreview');
+            arcEl.textContent = plan.arc;
+            arcEl.classList.remove('hidden');
+          }
+          // Switch loading message now that planning is done
+          const msgs = GENRE_LOADING[data.genre]||['Writing your story...'];
+          document.getElementById('generatingText').textContent = msgs[Math.floor(Math.random()*msgs.length)];
+          continue;
+        }
+
         if(msg.correction){const m=msg.correction.match(/<story-title>([\s\S]*?)<\/story-title>/);storyBuffer=m?msg.correction.replace(/<story-title>[\s\S]*?<\/story-title>\s*/,''):msg.correction;currentStoryText=storyBuffer;cursor.remove();renderStory(content,storyBuffer,true);continue;}
         if(msg.text){
           rawBuffer+=msg.text;
@@ -438,6 +468,7 @@ async function generateStory(fresh=false) {
         if(msg.done){
           cursor.remove(); currentStoryText=storyBuffer; renderStory(content,storyBuffer,true);
           document.getElementById('generatingIndicator').classList.add('hidden');
+          document.getElementById('arcPreview').classList.add('hidden');
           document.getElementById('storyDoneActions').classList.remove('hidden');
           forgeBtn.disabled=false; forgeBtn.innerHTML='⚡ Forge My Story';
           const words=storyBuffer.trim().split(/\s+/).length;
