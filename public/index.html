@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Story Forge — Generate Your Own Story</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+</head>
+<body class="genre-fantasy">
+
+  <header>
+    <div class="logo">
+      <span class="logo-icon">📖</span>
+      <h1>Story Forge</h1>
+    </div>
+    <p class="tagline">Your characters. Your world. Your story.</p>
+    <button class="history-btn" id="historyBtn" onclick="toggleHistory()">
+      📜 <span id="historyCount"></span>
+    </button>
+  </header>
+
+  <div id="historyPanel" class="history-panel hidden">
+    <div class="history-header">
+      <h3>Past Stories</h3>
+      <button onclick="toggleHistory()">✕</button>
+    </div>
+    <div id="historyList" class="history-list"></div>
+  </div>
+
+  <main>
+    <div class="steps-bar" id="stepsBar">
+      <button class="step-btn active" data-step="1" onclick="goToStep(1)"><span class="step-num">1</span><span class="step-label">Style</span></button>
+      <div class="step-divider"></div>
+      <button class="step-btn" data-step="2" onclick="goToStep(2)"><span class="step-num">2</span><span class="step-label">Characters</span></button>
+      <div class="step-divider"></div>
+      <button class="step-btn" data-step="3" onclick="goToStep(3)"><span class="step-num">3</span><span class="step-label">World</span></button>
+      <div class="step-divider"></div>
+      <button class="step-btn" data-step="4" onclick="goToStep(4)"><span class="step-num">4</span><span class="step-label">Forge</span></button>
+    </div>
+
+    <form id="storyForm">
+
+      <!-- STEP 1 -->
+      <section class="step-panel active" id="step1">
+        <h2>Set the stage</h2>
+        <p class="step-desc">Choose a genre, mood, and how you want the story told.</p>
+
+        <div class="field-group">
+          <label class="field-label">Genre</label>
+          <div class="card-grid">
+            <label class="card-option" data-genre="fantasy"><input type="radio" name="genre" value="fantasy" checked /><span class="card-icon">🧙</span><span class="card-name">Fantasy</span></label>
+            <label class="card-option" data-genre="scifi"><input type="radio" name="genre" value="scifi" /><span class="card-icon">🚀</span><span class="card-name">Sci-Fi</span></label>
+            <label class="card-option" data-genre="romance"><input type="radio" name="genre" value="romance" /><span class="card-icon">💖</span><span class="card-name">Romance</span></label>
+            <label class="card-option" data-genre="mystery"><input type="radio" name="genre" value="mystery" /><span class="card-icon">🔍</span><span class="card-name">Mystery</span></label>
+            <label class="card-option" data-genre="horror"><input type="radio" name="genre" value="horror" /><span class="card-icon">👻</span><span class="card-name">Horror</span></label>
+            <label class="card-option" data-genre="comedy"><input type="radio" name="genre" value="comedy" /><span class="card-icon">😂</span><span class="card-name">Comedy</span></label>
+            <label class="card-option" data-genre="adventure"><input type="radio" name="genre" value="adventure" /><span class="card-icon">⚔️</span><span class="card-name">Adventure</span></label>
+            <label class="card-option" data-genre="fairytale"><input type="radio" name="genre" value="fairytale" /><span class="card-icon">🌟</span><span class="card-name">Fairy Tale</span></label>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Tone</label>
+          <div class="card-grid tone-grid">
+            <label class="card-option"><input type="radio" name="tone" value="whimsical" checked /><span class="card-icon">🦋</span><span class="card-name">Whimsical</span></label>
+            <label class="card-option"><input type="radio" name="tone" value="dramatic" /><span class="card-icon">🎭</span><span class="card-name">Dramatic</span></label>
+            <label class="card-option"><input type="radio" name="tone" value="dark" /><span class="card-icon">🌑</span><span class="card-name">Dark</span></label>
+            <label class="card-option"><input type="radio" name="tone" value="silly" /><span class="card-icon">🃏</span><span class="card-name">Silly</span></label>
+            <label class="card-option"><input type="radio" name="tone" value="epic" /><span class="card-icon">🏔️</span><span class="card-name">Epic</span></label>
+            <label class="card-option"><input type="radio" name="tone" value="heartwarming" /><span class="card-icon">🌈</span><span class="card-name">Heartwarming</span></label>
+            <label class="card-option"><input type="radio" name="tone" value="spicy" /><span class="card-icon">🌶️</span><span class="card-name">Spicy</span></label>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="field-group">
+            <label class="field-label">Length</label>
+            <div class="length-options">
+              <label class="length-option"><input type="radio" name="length" value="short" /><div class="length-card"><span class="length-icon">📄</span><span class="length-name">Short</span><span class="length-desc">~400 words</span></div></label>
+              <label class="length-option"><input type="radio" name="length" value="medium" checked /><div class="length-card"><span class="length-icon">📚</span><span class="length-name">Medium</span><span class="length-desc">~900 words</span></div></label>
+              <label class="length-option"><input type="radio" name="length" value="long" /><div class="length-card"><span class="length-icon">📖</span><span class="length-name">Long</span><span class="length-desc">~1800 words</span></div></label>
+              <label class="length-option"><input type="radio" name="length" value="book" /><div class="length-card length-card--book"><span class="length-icon">📕</span><span class="length-name">Book</span><span class="length-desc">8 chapters</span></div></label>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Point of View</label>
+            <div class="pov-options">
+              <label class="pov-option"><input type="radio" name="pov" value="third_limited" checked /><div class="pov-card"><span class="pov-name">3rd Person</span><span class="pov-desc">Close & intimate</span></div></label>
+              <label class="pov-option"><input type="radio" name="pov" value="third_omni" /><div class="pov-card"><span class="pov-name">Omniscient</span><span class="pov-desc">All-knowing</span></div></label>
+              <label class="pov-option"><input type="radio" name="pov" value="first" /><div class="pov-card"><span class="pov-name">1st Person</span><span class="pov-desc">I, me, mine</span></div></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="audienceAge">Audience</label>
+          <div class="select-wrap">
+            <select name="audienceAge" id="audienceAge">
+              <option value="kids">Kids — family-friendly</option>
+              <option value="teens">Teens</option>
+              <option value="adults" selected>Adults</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="step-nav"><div></div><button type="button" class="btn-primary" onclick="goToStep(2)">Characters →</button></div>
+      </section>
+
+      <!-- STEP 2 -->
+      <section class="step-panel" id="step2">
+        <h2>Who's in your story?</h2>
+        <p class="step-desc">Add up to 6 characters. Use real names — friends, family, whoever you want.</p>
+        <div id="charactersList"></div>
+        <button type="button" class="btn-add-char" id="addCharBtn" onclick="addCharacter()">+ Add Another Character</button>
+        <div class="step-nav">
+          <button type="button" class="btn-secondary" onclick="goToStep(1)">← Back</button>
+          <button type="button" class="btn-primary" onclick="goToStep(3)">World →</button>
+        </div>
+      </section>
+
+      <!-- STEP 3 -->
+      <section class="step-panel" id="step3">
+        <h2>Build the world</h2>
+        <p class="step-desc">Set the scene. All fields optional — leave blank to let the AI decide.</p>
+
+        <div class="field-group">
+          <label class="field-label" for="storyIdea">Story Premise</label>
+          <textarea id="storyIdea" name="storyIdea" rows="3" placeholder="E.g. A disgraced detective gets one last case that could clear her name..."></textarea>
+        </div>
+        <div class="two-col">
+          <div class="field-group">
+            <label class="field-label" for="setting">Setting</label>
+            <input type="text" id="setting" name="setting" placeholder="E.g. Victorian London, space station, small town..." />
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="timePeriod">Time Period</label>
+            <input type="text" id="timePeriod" name="timePeriod" placeholder="E.g. 1890s, far future, present day..." />
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Plot Points <span class="optional">(optional)</span></label>
+          <p class="field-hint">Specific things that must happen.</p>
+          <div id="plotList"></div>
+          <button type="button" class="btn-add-plot" onclick="addPlotPoint()">+ Add Plot Point</button>
+        </div>
+
+        <div class="step-nav">
+          <button type="button" class="btn-secondary" onclick="goToStep(2)">← Back</button>
+          <button type="button" class="btn-primary" onclick="goToStep(4)">Review →</button>
+        </div>
+      </section>
+
+      <!-- STEP 4 -->
+      <section class="step-panel" id="step4">
+        <h2>Ready to forge?</h2>
+        <p class="step-desc">Review your choices, or hit Surprise Me to randomize everything.</p>
+        <div id="summaryBox" class="summary-box"></div>
+        <div class="forge-actions">
+          <button type="button" class="btn-surprise" onclick="surpriseMe()">🎲 Surprise Me</button>
+          <button type="button" class="btn-forge" id="forgeBtn" onclick="generateStory(true)">⚡ Forge My Story</button>
+        </div>
+        <div class="step-nav back-only">
+          <button type="button" class="btn-secondary" onclick="goToStep(3)">← Back</button>
+        </div>
+      </section>
+
+    </form>
+
+    <!-- STORY OUTPUT (short/medium/long) -->
+    <div id="storyOutput" class="story-output hidden">
+      <div class="story-header">
+        <div class="story-title-wrap">
+          <h2 id="storyTitle" class="story-title">Your Story</h2>
+          <span id="wordCountBadge" class="word-count-badge hidden"></span>
+        </div>
+        <div class="story-actions">
+          <button class="btn-action" onclick="copyStory()">📋 Copy</button>
+          <button class="btn-action" onclick="downloadStory()">💾 Download</button>
+          <button class="btn-action" onclick="printStory()">🖨️ Print</button>
+          <button class="btn-action" onclick="resetForm()">✨ New</button>
+        </div>
+      </div>
+      <div id="illustrationWrap" class="illustration-wrap">
+        <div id="illustrationShimmer" class="illustration-shimmer"><span class="shimmer-text" id="shimmerText">Painting your illustration...</span></div>
+        <img id="illustrationImg" class="illustration-img hidden" alt="Story illustration" />
+        <div id="illustrationError" class="illustration-error hidden"></div>
+      </div>
+      <div id="storyContent" class="story-content"></div>
+      <div id="generatingIndicator" class="generating-indicator hidden">
+        <span class="quill-anim">✍️</span> <span id="generatingText">Writing your story...</span>
+      </div>
+      <div id="storyDoneActions" class="story-done-actions hidden">
+        <button class="btn-regenerate" onclick="generateStory()">🔄 Regenerate</button>
+        <button class="btn-new" onclick="resetForm()">✨ New Story</button>
+      </div>
+    </div>
+
+    <!-- BOOK OUTPUT -->
+    <div id="bookOutput" class="book-output hidden">
+
+      <div class="book-header">
+        <div class="book-meta">
+          <h2 id="bookTitle" class="book-title"></h2>
+          <p id="bookTagline" class="book-tagline"></p>
+        </div>
+        <div class="story-actions">
+          <button class="btn-action" onclick="toggleTOC()">📑 Contents</button>
+          <button class="btn-action" onclick="downloadBook()">💾 Download</button>
+          <button class="btn-action" onclick="printStory()">🖨️ Print</button>
+          <button class="btn-action" onclick="resetForm()">✨ New</button>
+        </div>
+      </div>
+
+      <!-- TOC panel -->
+      <div id="tocPanel" class="toc-panel hidden">
+        <h4>Table of Contents</h4>
+        <ol id="tocList" class="toc-list"></ol>
+      </div>
+
+      <div class="chapter-progress">
+        <span id="chapterProgress"></span>
+      </div>
+
+      <div class="chapter-title-bar">
+        <h3 id="chapterTitle" class="chapter-title"></h3>
+      </div>
+
+      <div id="bookPlanningIndicator" class="generating-indicator hidden">
+        <span class="quill-anim">📋</span> <span id="planningText">Planning your book...</span>
+      </div>
+
+      <div id="chapterContent" class="story-content chapter-content"></div>
+
+      <div id="chapterGeneratingIndicator" class="generating-indicator hidden">
+        <span class="quill-anim">✍️</span> <span id="chapterGenText">Writing chapter...</span>
+      </div>
+
+      <div id="bookDoneActions" class="book-done-actions hidden">
+        <div class="book-nav-row">
+          <button id="prevChapterBtn" class="btn-chapter-nav hidden" onclick="goToPrevChapter()">← Previous Chapter</button>
+          <button id="nextChapterBtn" class="btn-next-chapter" onclick="generateNextChapter()">Next Chapter →</button>
+          <span id="bookFinishedMsg" class="book-finished hidden">🎉 The End</span>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer>
+    <p>Powered by <strong>OpenAI</strong> · Stories are AI-generated for entertainment</p>
+  </footer>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="printFrame" class="print-frame hidden">
+    <h1 id="printTitle"></h1>
+    <div id="printContent"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
