@@ -1,4 +1,4 @@
-app = 'story-forge'
+app = 'story-forge-jeff'
 primary_region = 'iad'
 
 [build]
