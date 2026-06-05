@@ -16,7 +16,8 @@ body.genre-mystery  { --g-accent:#f59e0b;--g-accent2:#94a3b8;--g-glow:rgba(245,1
 body.genre-horror   { --g-accent:#ef4444;--g-accent2:#991b1b;--g-glow:rgba(239,68,68,0.25);--g-bg-tint:#1a0505;--g-card-sel:rgba(239,68,68,0.1); }
 body.genre-comedy   { --g-accent:#fbbf24;--g-accent2:#fb923c;--g-glow:rgba(251,191,36,0.25);--g-bg-tint:#1a1200;--g-card-sel:rgba(251,191,36,0.1); }
 body.genre-adventure{ --g-accent:#4ade80;--g-accent2:#fbbf24;--g-glow:rgba(74,222,128,0.25);--g-bg-tint:#051a0e;--g-card-sel:rgba(74,222,128,0.1); }
-body.genre-fairytale{ --g-accent:#e879f9;--g-accent2:#818cf8;--g-glow:rgba(232,121,249,0.25);--g-bg-tint:#1a0a2e;--g-card-sel:rgba(232,121,249,0.1); }
+body.genre-fairytale { --g-accent:#e879f9;--g-accent2:#818cf8;--g-glow:rgba(232,121,249,0.25);--g-bg-tint:#1a0a2e;--g-card-sel:rgba(232,121,249,0.1); }
+body.genre-christian { --g-accent:#f0c060;--g-accent2:#d4845a;--g-glow:rgba(240,192,96,0.25);--g-bg-tint:#1a1200;--g-card-sel:rgba(240,192,96,0.1); }
 
 html { scroll-behavior: smooth; }
 body { font-family:'Georgia','Times New Roman',serif; background:var(--bg); color:var(--text); min-height:100vh; line-height:1.6; }

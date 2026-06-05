@@ -80,7 +80,8 @@ const GENRE_LOADING = {
   horror:["Something stirs in the dark...",'The candle is flickering...'],
   comedy:['Warming up the audience...','Polishing the punchlines...'],
   adventure:['Drawing the treasure map...','The journey begins...'],
-  fairytale:['Once upon a time...','Sprinkling the magic dust...'],
+  fairytale: ['Once upon a time...','Sprinkling the magic dust...'],
+  christian: ['Letting the story unfold...','Writing from the heart...'],
 };
 
 /* ===== INIT ===== */
@@ -189,7 +190,7 @@ function surpriseMe() {
 }
 
 /* ===== SUMMARY ===== */
-const GENRE_LABELS={fantasy:'🧙 Fantasy',scifi:'🚀 Sci-Fi',romance:'💖 Romance',mystery:'🔍 Mystery',horror:'👻 Horror',comedy:'😂 Comedy',adventure:'⚔️ Adventure',fairytale:'🌟 Fairy Tale'};
+const GENRE_LABELS={fantasy:'🧙 Fantasy',scifi:'🚀 Sci-Fi',romance:'💖 Romance',mystery:'🔍 Mystery',horror:'👻 Horror',comedy:'😂 Comedy',adventure:'⚔️ Adventure',fairytale:'🌟 Fairy Tale',christian:'✝️ Chr. Romance'};
 const TONE_LABELS={whimsical:'🦋 Whimsical',dramatic:'🎭 Dramatic',dark:'🌑 Dark',silly:'🃏 Silly',epic:'🏔️ Epic',heartwarming:'🌈 Heartwarming',spicy:'🌶️ Spicy'};
 const POV_LABELS={third_limited:'3rd (limited)',third_omni:'3rd (omniscient)',first:'1st Person'};
 const LENGTH_LABELS={short:'~400 words',medium:'~900 words',long:'~1800 words',book:'📕 Full Book'};

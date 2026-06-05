@@ -25,7 +25,8 @@ GENRE_FLAVORS = {
     'horror':    'horror story with building dread, eerie atmosphere, and a shocking climax',
     'comedy':    'comedic story full of sharp humor, absurd situations, and witty banter',
     'adventure': 'action-packed adventure with danger, exploration, and hard-won triumph',
-    'fairytale': 'enchanted fairy tale with wonder, magic, and a meaningful lesson',
+    'fairytale':  'enchanted fairy tale with wonder, magic, and a meaningful lesson',
+    'christian':  'Christian romance centered on faith, hope, and love — wholesome, uplifting, and spiritually grounded, with heartfelt emotion and no explicit content',
 }
 
 TONE_FLAVORS = {
@@ -52,7 +53,8 @@ GENRE_ART_STYLES = {
     'horror':    'dark gothic illustration, eerie moonlight, deep shadows, unsettling atmosphere',
     'comedy':    'vibrant cartoon illustration, bright saturated colors, exaggerated expressions',
     'adventure': 'adventure concept art, wide cinematic landscape, warm dramatic lighting',
-    'fairytale': 'watercolor storybook illustration, soft luminous pastels, whimsical atmosphere',
+    'fairytale':  'watercolor storybook illustration, soft luminous pastels, whimsical atmosphere',
+    'christian':  'soft romantic illustration, warm golden light, peaceful pastoral or small-town setting, uplifting and wholesome atmosphere',
 }
 
 _META_PATTERNS = [
