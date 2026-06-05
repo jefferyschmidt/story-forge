@@ -7,11 +7,13 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import psycopg2
 import psycopg2.extras
-from flask import Flask, request, Response, send_from_directory, jsonify
+from flask import Flask, request, Response, send_from_directory, jsonify, session
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv(Path(__file__).parent / '.env')
 
 app = Flask(__name__, static_folder='public', static_url_path='')
+app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32))
 
 client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
 
@@ -25,21 +27,137 @@ def init_db():
         conn = get_db()
         with conn.cursor() as cur:
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    display_name TEXT,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
                 CREATE TABLE IF NOT EXISTS stories (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
                     title TEXT NOT NULL,
                     genre TEXT,
                     tone TEXT,
                     author_style TEXT,
                     content TEXT NOT NULL,
+                    is_public BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMPTZ DEFAULT NOW()
-                )
+                );
             """)
         conn.commit()
         conn.close()
         print("Database ready.")
     except Exception as e:
         print(f"Database init warning: {e}")
+
+def current_user_id():
+    return session.get('user_id')
+
+def current_user():
+    uid = current_user_id()
+    if not uid:
+        return None
+    try:
+        conn = get_db()
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, email, display_name FROM users WHERE id = %s", (uid,))
+            user = cur.fetchone()
+        conn.close()
+        return dict(user) if user else None
+    except Exception:
+        return None
+
+# ── Auth routes ────────────────────────────────────────────────────────────────
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    display_name = (data.get('displayName') or email.split('@')[0]).strip()
+
+    if not email or not password:
+        return jsonify({'error': 'Email and password required'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+
+    try:
+        conn = get_db()
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM users WHERE email = %s", (email,))
+            if cur.fetchone():
+                conn.close()
+                return jsonify({'error': 'An account with that email already exists'}), 409
+            cur.execute(
+                "INSERT INTO users (email, password_hash, display_name) VALUES (%s, %s, %s) RETURNING id, email, display_name",
+                (email, generate_password_hash(password), display_name)
+            )
+            user = cur.fetchone()
+        conn.commit()
+        conn.close()
+        session['user_id'] = str(user['id'])
+        return jsonify({'user': {'id': str(user['id']), 'email': user['email'], 'displayName': user['display_name']}})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+
+    try:
+        conn = get_db()
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, email, display_name, password_hash FROM users WHERE email = %s", (email,))
+            user = cur.fetchone()
+        conn.close()
+        if not user or not check_password_hash(user['password_hash'], password):
+            return jsonify({'error': 'Incorrect email or password'}), 401
+        session['user_id'] = str(user['id'])
+        return jsonify({'user': {'id': str(user['id']), 'email': user['email'], 'displayName': user['display_name']}})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/auth/me')
+def me():
+    user = current_user()
+    if not user:
+        return jsonify({'user': None})
+    return jsonify({'user': {'id': str(user['id']), 'email': user['email'], 'displayName': user['display_name']}})
+
+
+@app.route('/api/user/stories')
+def user_stories():
+    uid = current_user_id()
+    if not uid:
+        return jsonify({'error': 'Not logged in'}), 401
+    try:
+        conn = get_db()
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, title, genre, tone, author_style, created_at FROM stories "
+                "WHERE user_id = %s ORDER BY created_at DESC LIMIT 50",
+                (uid,)
+            )
+            rows = cur.fetchall()
+        conn.close()
+        return jsonify({'stories': [
+            {**dict(r), 'id': str(r['id']), 'created_at': r['created_at'].isoformat()}
+            for r in rows
+        ]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 TEXT_MODEL    = 'gpt-4o'
 CHAPTER_WORDS = 1800
@@ -525,16 +643,19 @@ def share_story():
         return {'error': 'No content to share'}, 400
     try:
         conn = get_db()
+        uid = current_user_id()
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO stories (title, genre, tone, author_style, content) "
-                "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                "INSERT INTO stories (user_id, title, genre, tone, author_style, content, is_public) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
                 (
+                    uid,
                     data.get('title', 'Untitled'),
                     data.get('genre', ''),
                     data.get('tone', ''),
                     data.get('authorStyle', ''),
                     data.get('content', ''),
+                    True,
                 )
             )
             story_id = cur.fetchone()['id']
