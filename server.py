@@ -26,6 +26,7 @@ def init_db():
     try:
         conn = get_db()
         with conn.cursor() as cur:
+            # Users table
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -33,19 +34,27 @@ def init_db():
                     password_hash TEXT NOT NULL,
                     display_name TEXT,
                     created_at TIMESTAMPTZ DEFAULT NOW()
-                );
+                )
+            """)
+            # Stories table (original schema)
+            cur.execute("""
                 CREATE TABLE IF NOT EXISTS stories (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
                     title TEXT NOT NULL,
                     genre TEXT,
                     tone TEXT,
                     author_style TEXT,
                     content TEXT NOT NULL,
-                    is_public BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMPTZ DEFAULT NOW()
-                );
+                )
             """)
+            # Migrations — add columns that may not exist yet
+            migrations = [
+                "ALTER TABLE stories ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL",
+                "ALTER TABLE stories ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT TRUE",
+            ]
+            for m in migrations:
+                cur.execute(m)
         conn.commit()
         conn.close()
         print("Database ready.")
